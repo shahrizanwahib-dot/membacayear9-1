@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Harmoni Budaya - Cerita Interaktif</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow: hidden; 
+        }
+
+        /* Tipografi Khas untuk Cerita */
+        .story-text {
+            font-family: 'Merriweather', serif;
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c7c7cc; 
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #a1a1aa; 
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+        }
+        
+        /* Video Placeholder */
+        .video-placeholder {
+            background: #000;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .play-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.8);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        .video-placeholder:hover .play-button {
+            transform: scale(1.1);
+            background: #fff;
+        }
+
+        /* Styles untuk Fill in the Blank Quiz */
+        .blank-slot {
+            display: inline-block;
+            min-width: 100px;
+            border-bottom: 2px dashed #4f46e5;
+            color: #4f46e5;
+            text-align: center;
+            cursor: pointer;
+            padding: 0 5px;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .blank-slot:hover {
+            background-color: #eef2ff;
+        }
+        .blank-slot.filled {
+            border-bottom: 2px solid #16a34a;
+            color: #16a34a;
+        }
+        .blank-slot.wrong {
+            border-bottom: 2px solid #dc2626;
+            color: #dc2626;
+        }
+    </style>
+</head>
+<body class="bg-white text-slate-800 h-screen w-screen flex flex-col">
+
+    <!-- Container Utama -->
+    <div class="w-full h-full flex flex-col bg-white">
+        
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-indigo-700 to-indigo-500 p-4 text-white flex justify-between items-center shadow-sm flex-shrink-0">
+            <div class="flex items-center space-x-3">
+                <i data-lucide="book-open" class="w-6 h-6 text-indigo-200"></i>
+                <span class="font-bold text-xl tracking-wider">HARMONI BUDAYA</span>
+            </div>
+            <div class="text-sm bg-white/20 backdrop-blur-sm px-4 py-1 rounded-full font-mono border border-white/30">
+                <span id="slide-indicator">1 / 15</span>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="w-full bg-gray-100 h-1 flex-shrink-0">
+            <div id="progress-bar" class="bg-orange-500 h-1 transition-all duration-300 ease-out" style="width: 6.66%;"></div>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 overflow-y-auto relative custom-scrollbar">
+            <div class="max-w-5xl mx-auto p-8 md:p-12 min-h-full flex flex-col">
+                <div id="content-container" class="flex-1 flex flex-col animate-fadeIn">
+                    <!-- Content will be injected here by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Navigation -->
+        <div class="bg-white p-4 border-t border-gray-100 flex justify-between items-center flex-shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+            <button id="btn-prev" onclick="prevSlide()" class="flex items-center px-6 py-3 rounded-lg font-bold transition-all bg-gray-50 text-indigo-700 hover:bg-gray-100 border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                <i data-lucide="chevron-left" class="mr-2 w-5 h-5"></i> <span class="hidden sm:inline">Sebelumnya</span>
+            </button>
+
+            <div class="hidden lg:block text-xs text-gray-400 italic">
+                Gunakan kekunci ⬅️ ➡️ untuk navigasi pantas
+            </div>
+
+            <button id="btn-next" onclick="nextSlide()" class="flex items-center px-6 py-3 rounded-lg font-bold transition-all bg-indigo-600 text-white hover:bg-indigo-700 hover:pr-4 shadow-lg hover:shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span id="btn-next-text" class="hidden sm:inline">Seterusnya</span> 
+                <span id="btn-next-text-mobile" class="sm:hidden">Maju</span>
+                <i data-lucide="chevron-right" class="ml-2 w-5 h-5"></i>
+            </button>
+        </div>
+
+    </div>
+    
+    <!-- JavaScript Logic -->
+    <script>
+        // State Variables
+        let currentSlide = 0;
+        let quizState = { 1: null, 2: null, 3: null }; 
+        let feedback = "";
+        let reflectionText = "";
+        let doNowResponse = ""; 
+        let vocabFlipped = {}; 
+        const totalSlides = 15;
+
+        // Fallback placeholder function
+        // Jika gambar 'images/namafail.png' tiada, ia akan guna placeholder online.
+        const handleImgError = (img, text) => {
+            img.onerror = null; 
+            img.src = `https://placehold.co/600x400?text=${text}`;
+        };
+
+        // Slide Data Generator
+        const getSlides = () => [
+            {
+                id: 1, type: "intro", title: "Persahabatan Tanpa Sempadan", subtitle: "Modul Literasi Budaya Interaktif",
+                render: () => `
+                    <div class="flex flex-col items-center justify-center h-full space-y-8">
+                        <div class="w-full max-w-3xl h-64 bg-gray-200 rounded-2xl overflow-hidden shadow-lg mb-4 relative group">
+                            <!-- SRC di sini merujuk kepada folder images/ -->
+                            <img src="images/intro-banner.png" 
+                                 onerror="handleImgError(this, 'Intro+Banner')" 
+                                 alt="Intro Banner" 
+                                 class="w-full h-full object-cover opacity-90 group-hover:scale-105 transition-transform duration-700">
+                            <div class="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded">Filename: images/intro-banner.png</div>
+                        </div>
+
+                        <div class="text-center space-y-4">
+                            <h2 class="text-3xl font-bold text-indigo-900">Selamat Datang!</h2>
+                            <p class="text-gray-600 max-w-lg mx-auto text-lg leading-relaxed">
+                                Mari kita selami kisah persahabatan yang merentasi budaya.
+                            </p>
+                        </div>
+
+                        <div class="w-full max-w-2xl bg-yellow-50 border-l-4 border-yellow-400 p-6 rounded-r-lg shadow-sm mt-4">
+                            <div class="flex items-center gap-2 mb-3">
+                                <i data-lucide="zap" class="text-yellow-600 w-5 h-5"></i>
+                                <h3 class="font-bold text-yellow-800 text-lg">Aktiviti Do Now (Mula Sekarang)</h3>
+                            </div>
+                            <p class="text-gray-700 mb-3">Sebelum kita mula, namakan satu makanan tradisional rakan anda yang paling anda gemari:</p>
+                            <div class="flex gap-2">
+                                <input type="text" 
+                                    value="${doNowResponse}"
+                                    oninput="doNowResponse = this.value"
+                                    placeholder="Contoh: Nasi Lemak, Roti Canai, Char Kuey Teow..." 
+                                    class="flex-1 p-3 border border-yellow-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 bg-white"
+                                />
+                            </div>
+                        </div>
+                    </div>`
+            },
+            {
+                id: 2, type: "objectives", title: "Objektif Pengajaran (Guru)", subtitle: "",
+                render: () => `
+                    <div class="space-y-6 max-w-4xl mx-auto">
+                        <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100">
+                            <h4 class="font-bold text-indigo-800 mb-2 text-lg">Fokus Utama:</h4>
+                            <p class="text-gray-700">Mengajar murid memahami plot cerita dan menghargai elemen budaya dalam teks sastera.</p>
+                        </div>
+                        <p class="text-gray-700 font-medium text-lg">Pada akhir sesi ini, murid dapat:</p>
+                        <div class="grid gap-4 md:grid-cols-3">
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-green-100 hover:border-green-300 transition-colors">
+                                <div class="bg-green-100 w-10 h-10 rounded-full flex items-center justify-center mb-3">
+                                    <i data-lucide="book-open" class="text-green-600 w-5 h-5"></i>
+                                </div>
+                                <p class="text-gray-800"><strong>Menyatakan nilai murni</strong> yang terdapat dalam interaksi watak.</p>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-purple-100 hover:border-purple-300 transition-colors">
+                                <div class="bg-purple-100 w-10 h-10 rounded-full flex items-center justify-center mb-3">
+                                    <i data-lucide="heart" class="text-purple-600 w-5 h-5"></i>
+                                </div>
+                                <p class="text-gray-800"><strong>Mengenal pasti ciri budaya</strong> (makanan, pakaian, seni) pelbagai kaum.</p>
+                            </div>
+                            <div class="bg-white p-5 rounded-xl shadow-sm border border-orange-100 hover:border-orange-300 transition-colors">
+                                <div class="bg-orange-100 w-10 h-10 rounded-full flex items-center justify-center mb-3">
+                                    <i data-lucide="star" class="text-orange-600 w-5 h-5"></i>
+                                </div>
+                                <p class="text-gray-800"><strong>Membaca dialog</strong> dengan sebutan dan intonasi yang betul.</p>
+                            </div>
+                        </div>
+                    </div>`
+            },
+            {
+                id: 3, type: "scaffold", title: "Pra-Bacaan: Zon Kosa Kata (3 Kaum)", subtitle: "Klik kad untuk melihat definisi dan bantuan dwibhasa.",
+                render: () => {
+                    const vocabs = [
+                        { race: "Melayu", word: "Tanjak", translation: "Traditional Headgear", desc: "Kain hiasan kepala lelaki Melayu.", img: "images/vocab-tanjak.png", fallback: "Tanjak" },
+                        { race: "Melayu", word: "Nasi Lemak", translation: "Coconut Milk Rice", desc: "Nasi dimasak dengan santan, makanan kebangsaan.", img: "images/vocab-nasilemak.png", fallback: "Nasi+Lemak" },
+                        { race: "Cina", word: "Cheongsam", translation: "Traditional Dress", desc: "Pakaian tradisional wanita Cina yang anggun.", img: "images/vocab-cheongsam.png", fallback: "Cheongsam" },
+                        { race: "Cina", word: "Tanglung", translation: "Lantern", desc: "Hiasan kertas bercahaya, simbol pesta kuih bulan.", img: "images/vocab-tanglung.png", fallback: "Tanglung" },
+                        { race: "India", word: "Kolam", translation: "Floor Art", desc: "Seni hiasan lantai daripada beras berwarna.", img: "images/vocab-kolam.png", fallback: "Seni+Kolam" },
+                        { race: "India", word: "Murukku", translation: "Crunchy Snack", desc: "Makanan ringan rangup berbentuk lingkaran.", img: "images/vocab-murukku.png", fallback: "Murukku" }
+                    ];
+                    
+                    const colors = {
+                        "Melayu": "bg-green-50 border-green-200 text-green-800",
+                        "Cina": "bg-red-50 border-red-200 text-red-800",
+                        "India": "bg-orange-50 border-orange-200 text-orange-800"
+                    };
+
+                    return `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-2">
+                        ${vocabs.map(item => `
+                            <div onclick="toggleVocab('${item.word}')" class="cursor-pointer h-64 relative perspective-1000 group">
+                                <div class="w-full h-full transition-transform duration-500 bg-white rounded-xl shadow-sm border-2 hover:shadow-md flex items-center justify-center p-4 text-center ${vocabFlipped[item.word] ? colors[item.race] : "border-slate-100"}">
+                                    ${!vocabFlipped[item.word] ? `
+                                        <div class="flex flex-col items-center space-y-3 w-full">
+                                            <img src="${item.img}" 
+                                                 onerror="handleImgError(this, '${item.fallback}')"
+                                                 class="w-full h-32 object-cover rounded-lg mb-2 shadow-sm" alt="${item.word}">
+                                            <h3 class="text-xl font-bold text-slate-700 group-hover:text-indigo-600 transition-colors">${item.word}</h3>
+                                            <span class="text-xs font-bold uppercase tracking-wider px-2 py-1 rounded bg-slate-100 text-slate-500">${item.race}</span>
+                                        </div>
+                                    ` : `
+                                        <div class="flex flex-col h-full justify-center items-center">
+                                            <p class="text-sm font-bold mb-1 border-b border-current pb-1 opacity-80">${item.translation}</p>
+                                            <p class="text-sm font-medium leading-relaxed">${item.desc}</p>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="text-center mt-6 p-3 bg-blue-50 rounded-lg text-blue-800 text-sm font-medium">
+                        <i data-lucide="languages" class="inline w-4 h-4 mr-1"></i> Bantuan Dwibhasa: Klik kad untuk melihat terjemahan Bahasa Inggeris.
+                    </div>`;
+                }
+            },
+            {
+                id: 4, type: "story", title: "Pengenalan Watak", subtitle: "",
+                render: () => `
+                    <div class="flex flex-col h-full justify-center max-w-4xl mx-auto">
+                        <p class="text-center text-gray-500 italic mb-8">"Kenali watak-watak ini untuk memahami perwatakan mereka."</p>
+                        <div class="flex flex-col md:flex-row items-center gap-8">
+                            <div class="flex-1 w-full bg-white p-8 rounded-2xl border border-gray-100 shadow-lg shadow-green-100/50 hover:-translate-y-1 transition-transform">
+                                <img src="images/character-adam.png" 
+                                     onerror="handleImgError(this, 'Adam')"
+                                     class="w-32 h-32 rounded-full mx-auto mb-4 object-cover shadow-lg border-4 border-green-50" alt="Adam">
+                                <h3 class="text-2xl font-bold text-gray-800 text-center">Adam</h3>
+                                <ul class="text-left text-gray-600 mt-6 space-y-3 list-none">
+                                    <li class="flex items-start gap-2"><i data-lucide="check" class="w-5 h-5 text-green-500 flex-shrink-0"></i> Baru berpindah ke kejiranan.</li>
+                                    <li class="flex items-start gap-2"><i data-lucide="check" class="w-5 h-5 text-green-500 flex-shrink-0"></i> Sifat: <strong>Ingin tahu</strong> dan peramah.</li>
+                                    <li class="flex items-start gap-2"><i data-lucide="check" class="w-5 h-5 text-green-500 flex-shrink-0"></i> Belum biasa dengan budaya jiran.</li>
+                                </ul>
+                            </div>
+                            <div class="flex-1 w-full bg-white p-8 rounded-2xl border border-gray-100 shadow-lg shadow-orange-100/50 hover:-translate-y-1 transition-transform">
+                                <img src="images/character-ravi.png" 
+                                     onerror="handleImgError(this, 'Ravi')"
+                                     class="w-32 h-32 rounded-full mx-auto mb-4 object-cover shadow-lg border-4 border-orange-50" alt="Ravi">
+                                <h3 class="text-2xl font-bold text-gray-800 text-center">Ravi</h3>
+                                <ul class="text-left text-gray-600 mt-6 space-y-3 list-none">
+                                    <li class="flex items-start gap-2"><i data-lucide="check" class="w-5 h-5 text-orange-500 flex-shrink-0"></i> Jiran sebelah rumah Adam.</li>
+                                    <li class="flex items-start gap-2"><i data-lucide="check" class="w-5 h-5 text-orange-500 flex-shrink-0"></i> Sifat: <strong>Bangga dengan budaya</strong>.</li>
+                                    <li class="flex items-start gap-2"><i data-lucide="check" class="w-5 h-5 text-orange-500 flex-shrink-0"></i> Suka berkongsi cerita.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>`
+            },
+            {
+                id: 5, type: "story", title: "Permulaan: Suasana Petang", subtitle: "",
+                render: () => `
+                    <div class="bg-white p-10 rounded-2xl shadow-sm border border-gray-200 leading-relaxed text-lg max-w-4xl mx-auto">
+                        <img src="images/scene-neighborhood.png" 
+                             onerror="handleImgError(this, 'Suasana+Petang')"
+                             class="w-full h-48 object-cover rounded-xl mb-6 shadow-sm" alt="Suasana Petang">
+                        
+                        <p class="mb-6 story-text">Angin petang bertiup sepoi-sepoi bahasa di Taman Ceria, menggoyangkan dedaunan pokok mangga di halaman rumah. Cahaya matahari yang kian condong mewarnai langit dengan rona jingga keemasan. Burung-burung berkicau riang, terbang berkawanan pulang ke sarang, menandakan hari semakin senja. Adam yang baru sahaja selesai mengemas bilik, melangkah keluar ke beranda rumah untuk menghirup udara segar sambil meregangkan badannya yang lenguh.</p>
+                        <p class="mb-6 story-text">Tanpa disedari, matanya tertumpu ke arah rumah jiran baharunya di sebelah kanan. Pagar rumah itu sedikit terbuka, membolehkan Adam melihat dengan jelas. Dia melihat seorang budak lelaki, mungkin sebaya dengannya, sedang duduk bersila di atas lantai simen garaj kereta. Budak itu kelihatan sangat fokus dan tekun, tangannya bergerak perlahan-lahan menabur sesuatu.</p>
+                        <div class="bg-indigo-50 p-6 rounded-xl border-l-4 border-indigo-500 italic text-indigo-900 font-medium my-8">
+                            "Eh, apa yang dia buat tu? Nampak macam dia sedang menabur pasir berwarna-warni. Cantik sungguh coraknya," bisik hati Adam penuh kehairanan. Perasaan ingin tahu membuak-buak dalam dirinya untuk mengetahui dengan lebih lanjut.
+                        </div>
+                    </div>`
+            },
+            {
+                id: 6, type: "info", title: "Info Budaya: Seni Warisan (3 Kaum)", subtitle: "Perbandingan seni halus masyarakat Malaysia.",
+                render: () => `
+                    <div class="space-y-8 max-w-6xl mx-auto">
+                        <p class="text-center text-gray-600 mb-4 max-w-2xl mx-auto">Setiap kaum di Malaysia mempunyai seni warisan yang unik. Mari kita lihat perbandingan antara tiga seni utama.</p>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Kad Melayu: Batik -->
+                            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-green-100 hover:shadow-xl transition-shadow flex flex-col h-full">
+                                <div class="h-48 bg-green-100 overflow-hidden relative">
+                                    <img src="https://placehold.co/400x300?text=Seni+Batik" onerror="handleImgError(this, 'Seni+Batik')" class="w-full h-full object-cover">
+                                    <div class="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded text-xs font-bold text-green-800">MELAYU</div>
+                                </div>
+                                <div class="p-6 flex-1 flex flex-col">
+                                    <h3 class="font-bold text-xl text-green-900 mb-2">Seni Batik</h3>
+                                    <p class="text-gray-600 text-sm flex-1">Seni melukis corak pada kain menggunakan lilin (canting) dan pewarna. Motif selalunya berunsurkan alam semula jadi seperti bunga dan daun.</p>
+                                    <div class="mt-4 pt-4 border-t border-green-50 text-xs text-green-600 font-medium">
+                                        <i data-lucide="pen-tool" class="inline w-3 h-3 mr-1"></i> Alat: Canting & Lilin
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Kad Cina: Kaligrafi -->
+                            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-red-100 hover:shadow-xl transition-shadow flex flex-col h-full">
+                                <div class="h-48 bg-red-100 overflow-hidden relative">
+                                    <img src="https://placehold.co/400x300?text=Kaligrafi+Cina" onerror="handleImgError(this, 'Kaligrafi+Cina')" class="w-full h-full object-cover">
+                                    <div class="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded text-xs font-bold text-red-800">CINA</div>
+                                </div>
+                                <div class="p-6 flex-1 flex flex-col">
+                                    <h3 class="font-bold text-xl text-red-900 mb-2">Kaligrafi (Shufa)</h3>
+                                    <p class="text-gray-600 text-sm flex-1">Seni tulisan tangan yang indah menggunakan berus dakwat hitam. Ia melambangkan disiplin diri dan kehalusan budi pekerti.</p>
+                                    <div class="mt-4 pt-4 border-t border-red-50 text-xs text-red-600 font-medium">
+                                        <i data-lucide="edit-3" class="inline w-3 h-3 mr-1"></i> Alat: Berus & Dakwat
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Kad India: Kolam -->
+                            <div class="bg-white rounded-xl shadow-md overflow-hidden border border-orange-100 hover:shadow-xl transition-shadow flex flex-col h-full">
+                                <div class="h-48 bg-orange-100 overflow-hidden relative">
+                                    <img src="images/vocab-kolam.png" onerror="handleImgError(this, 'Seni+Kolam')" class="w-full h-full object-cover">
+                                    <div class="absolute top-2 left-2 bg-white/90 px-2 py-1 rounded text-xs font-bold text-orange-800">INDIA</div>
+                                </div>
+                                <div class="p-6 flex-1 flex flex-col">
+                                    <h3 class="font-bold text-xl text-orange-900 mb-2">Seni Kolam</h3>
+                                    <p class="text-gray-600 text-sm flex-1">Seni lantai menggunakan tepung beras atau beras berwarna. Simbol kemakmuran dan makanan untuk serangga kecil.</p>
+                                    <div class="mt-4 pt-4 border-t border-orange-50 text-xs text-orange-600 font-medium">
+                                        <i data-lucide="layers" class="inline w-3 h-3 mr-1"></i> Alat: Tepung Beras
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`
+            },
+            {
+                id: 7, type: "story", title: "Dialog: Perbualan Dua Jiran", subtitle: "Baca dialog ini dengan teliti.",
+                render: () => `
+                    <div class="space-y-6 max-w-4xl mx-auto bg-gray-50 p-8 rounded-3xl border border-gray-200">
+                        <div class="text-center italic text-gray-500 text-sm mb-6">Adam berjalan perlahan-lahan menghampiri pagar rumah Ravi...</div>
+
+                        <!-- Adam 1 -->
+                        <div class="flex items-start gap-4 animate-fadeIn" style="animation-delay: 0.1s">
+                            <img src="images/character-adam.png" onerror="handleImgError(this, 'Adam')" class="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover flex-shrink-0">
+                            <div class="bg-white p-5 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 flex-1">
+                                <p class="text-blue-800 font-bold text-xs mb-1 uppercase">Adam</p>
+                                <p class="text-gray-800 leading-relaxed">"Assalamualaikum dan Hai! Maaf mengganggu petang-petang ni. Saya jiran baru yang baru pindah di sebelah."</p>
+                            </div>
+                        </div>
+
+                        <!-- Ravi 1 -->
+                        <div class="flex items-start gap-4 flex-row-reverse animate-fadeIn" style="animation-delay: 0.3s">
+                            <img src="images/character-ravi.png" onerror="handleImgError(this, 'Ravi')" class="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover flex-shrink-0">
+                            <div class="bg-orange-50 p-5 rounded-2xl rounded-tr-none shadow-sm border border-orange-100 flex-1 text-right">
+                                <p class="text-orange-800 font-bold text-xs mb-1 uppercase">Ravi</p>
+                                <p class="text-gray-800 leading-relaxed">"Waalaikumussalam dan Hai! Eh, tak ganggu pun. Jemputlah datang dekat sikit. Nama saya Ravi. Selamat berkenalan!"</p>
+                            </div>
+                        </div>
+
+                        <!-- Narrator -->
+                        <div class="flex justify-center my-2 animate-fadeIn" style="animation-delay: 0.5s">
+                            <span class="bg-gray-200 text-gray-600 text-xs px-3 py-1 rounded-full italic">Adam tersenyum dan melangkah masuk ke halaman rumah Ravi.</span>
+                        </div>
+
+                        <!-- Adam 2 -->
+                        <div class="flex items-start gap-4 animate-fadeIn" style="animation-delay: 0.7s">
+                            <img src="images/character-adam.png" onerror="handleImgError(this, 'Adam')" class="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover flex-shrink-0">
+                            <div class="bg-white p-5 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 flex-1">
+                                <p class="text-blue-800 font-bold text-xs mb-1 uppercase">Adam</p>
+                                <p class="text-gray-800 leading-relaxed">"Selamat berkenalan, Ravi. Saya Adam. Sebenarnya dari jauh lagi saya perhatikan awak. Cantik sungguh corak di lantai ni! Warna-warni. Boleh saya tahu, ni dibuat daripada apa? Nampak macam pasir halus."</p>
+                            </div>
+                        </div>
+
+                        <!-- Ravi 2 -->
+                        <div class="flex items-start gap-4 flex-row-reverse animate-fadeIn" style="animation-delay: 0.9s">
+                            <img src="images/character-ravi.png" onerror="handleImgError(this, 'Ravi')" class="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover flex-shrink-0">
+                            <div class="bg-orange-50 p-5 rounded-2xl rounded-tr-none shadow-sm border border-orange-100 flex-1 text-right">
+                                <p class="text-orange-800 font-bold text-xs mb-1 uppercase">Ravi</p>
+                                <p class="text-gray-800 leading-relaxed">"(Ketawa kecil) Terima kasih, Adam. Sebenarnya ini bukan pasir, tapi tepung beras yang diwarnakan. Kami panggil seni ini 'Kolam'. Kami buat ni sebab esok kan Deepavali."</p>
+                            </div>
+                        </div>
+
+                        <!-- Adam 3 -->
+                        <div class="flex items-start gap-4 animate-fadeIn" style="animation-delay: 1.1s">
+                            <img src="images/character-adam.png" onerror="handleImgError(this, 'Adam')" class="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover flex-shrink-0">
+                            <div class="bg-white p-5 rounded-2xl rounded-tl-none shadow-sm border border-gray-100 flex-1">
+                                <p class="text-blue-800 font-bold text-xs mb-1 uppercase">Adam</p>
+                                <p class="text-gray-800 leading-relaxed">"Oh, tepung beras! Uniknya. Tapi... kenapa guna tepung? Kalau hujan atau kena angin nanti, tak rosak ke? Sayanglah penat-penat buat."</p>
+                            </div>
+                        </div>
+
+                        <!-- Ravi 3 -->
+                        <div class="flex items-start gap-4 flex-row-reverse animate-fadeIn" style="animation-delay: 1.3s">
+                            <img src="images/character-ravi.png" onerror="handleImgError(this, 'Ravi')" class="w-14 h-14 rounded-full border-2 border-white shadow-sm object-cover flex-shrink-0">
+                            <div class="bg-orange-50 p-5 rounded-2xl rounded-tr-none shadow-sm border border-orange-100 flex-1 text-right">
+                                <p class="text-orange-800 font-bold text-xs mb-1 uppercase">Ravi</p>
+                                <p class="text-gray-800 leading-relaxed">"Memang itu tujuannya, Adam. Selain untuk hiasan, tepung ni jadi makanan untuk semut dan burung. Dalam budaya kami, buat baik pada makhluk kecil pun dapat pahala. Lagipun, ini tanda 'Selamat Datang' yang membawa tuah."</p>
+                            </div>
+                        </div>
+                    </div>`
+            },
+            {
+                id: 8, type: "quiz", title: "Lengkapkan Ayat / Fill in the Blanks", subtitle: "Klik pada tempat kosong untuk memilih jawapan yang betul. (Click the blank to toggle answers)",
+                render: () => {
+                    // Logic to toggle answers
+                    window.toggleAnswer = (qId, options) => {
+                        const current = quizState[qId] || 0;
+                        const next = (current + 1) % options.length;
+                        quizState[qId] = next;
+                        renderSlide(); // Re-render to show change
+                    };
+
+                    const getSlotClass = (qId, correctIndex) => {
+                        if (quizState[qId] === null) return "blank-slot";
+                        return quizState[qId] === correctIndex ? "blank-slot filled" : "blank-slot wrong";
+                    };
+
+                    const allCorrect = quizState[1] === 1 && quizState[2] === 1 && quizState[3] === 1;
+
+                    return `
+                    <div class="flex flex-col items-center justify-center h-full max-w-4xl mx-auto space-y-8">
+                        <div class="bg-indigo-50 p-8 rounded-2xl border border-indigo-100 w-full text-lg leading-loose shadow-sm">
+                            <p class="mb-6">
+                                1. Seni Kolam biasanya diperbuat daripada 
+                                <span onclick="toggleAnswer(1, ['Pasir (Sand)', 'Tepung Beras (Rice Flour)', 'Simen (Cement)'] )" class="${getSlotClass(1, 1)}">
+                                    ${quizState[1] !== null ? ['Pasir (Sand)', 'Tepung Beras (Rice Flour)', 'Simen (Cement)'][quizState[1]] : "[ Pilih Bahan ]"}
+                                </span>.
+                            </p>
+                            <p class="mb-6">
+                                2. Salah satu tujuan Kolam adalah untuk memberi makan kepada makhluk kecil seperti 
+                                <span onclick="toggleAnswer(2, ['Gajah (Elephants)', 'Semut (Ants)', 'Harimau (Tigers)'] )" class="${getSlotClass(2, 1)}">
+                                    ${quizState[2] !== null ? ['Gajah (Elephants)', 'Semut (Ants)', 'Harimau (Tigers)'][quizState[2]] : "[ Pilih Haiwan ]"}
+                                </span>.
+                            </p>
+                            <p>
+                                3. Kolam dilukis di hadapan rumah untuk 
+                                <span onclick="toggleAnswer(3, ['Menghalau (Chase away)', 'Mengalu-alukan (Welcome)', 'Menakutkan (Scare)'] )" class="${getSlotClass(3, 1)}">
+                                    ${quizState[3] !== null ? ['Menghalau (Chase away)', 'Mengalu-alukan (Welcome)', 'Menakutkan (Scare)'][quizState[3]] : "[ Pilih Tujuan ]"}
+                                </span> 
+                                tetamu.
+                            </p>
+                        </div>
+
+                        <div class="text-center h-16">
+                            ${allCorrect ? 
+                                `<div class="bg-green-100 text-green-800 px-6 py-3 rounded-full font-bold animate-bounce flex items-center gap-2 inline-flex">
+                                    <i data-lucide="check-circle"></i> Tahniah! Semua jawapan betul. (Great job!)
+                                </div>` : 
+                                `<p class="text-gray-500 text-sm italic">Klik setiap tempat kosong sehingga jawapan bertukar hijau.</p>`
+                            }
+                        </div>
+                    </div>`;
+                }
+            },
+            {
+                id: 9, type: "story", title: "Klimaks: Jemputan Ikhlas", subtitle: "",
+                render: () => `
+                    <div class="bg-white p-10 rounded-2xl shadow-lg border-t-8 border-indigo-500 max-w-4xl mx-auto h-full flex flex-col justify-center">
+                        <!-- Climax Illustration -->
+                        <div class="w-full h-48 bg-orange-100 rounded-xl mb-6 overflow-hidden">
+                            <img src="images/scene-invitation.png" onerror="handleImgError(this, 'Jemputan')" class="w-full h-full object-cover opacity-90" alt="Jemputan">
+                        </div>
+
+                        <p class="text-gray-700 text-xl leading-loose mb-8">Ravi bangun dan menepuk tangannya untuk membuang sisa tepung. Dia tersenyum memandang jiran barunya itu.</p>
+                        <div class="relative bg-orange-50 p-8 rounded-xl border-l-4 border-orange-500 mb-8">
+                            <i data-lucide="quote" class="absolute top-4 right-4 text-orange-200 w-8 h-8 opacity-50"></i>
+                            <p class="text-gray-900 font-serif font-medium text-2xl leading-relaxed italic">
+                                "Adam, esok mak saya buat rumah terbuka. Datanglah! Mak ada buat banyak Murukku. Kalau awak nak, saya boleh pinjamkan baju Jippa saya. Kita boleh tangkap gambar sama-sama!"
+                            </p>
+                        </div>
+                        <p class="text-gray-700 text-xl leading-relaxed">Adam teruja. Dia tidak pernah memakai pakaian tradisional India sebelum ini. <span class="text-indigo-700 font-bold">"Wah, mesti segak! Terima kasih Ravi. Saya pasti datang!"</span></p>
+                    </div>`
+            },
+            {
+                id: 10, type: "info", title: "Info Budaya: Pakaian & Makanan", subtitle: "Kenali warisan budaya India.",
+                render: () => `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                        <div class="bg-purple-50 p-8 rounded-2xl border border-purple-100 hover:shadow-md transition-shadow">
+                            <div class="flex items-center gap-4 mb-6">
+                                <div class="p-3 bg-white rounded-full shadow-sm">
+                                    <i data-lucide="shirt" class="text-purple-600 w-8 h-8"></i>
+                                </div>
+                                <h3 class="font-bold text-purple-900 text-2xl">Pakaian Lelaki</h3>
+                            </div>
+                            <img src="images/clothing-jippa-dhoti.png" onerror="handleImgError(this, 'Pakaian')" class="w-full h-40 object-cover rounded-lg mb-4 shadow-sm" alt="Pakaian">
+                            <ul class="space-y-4 text-gray-700 text-lg">
+                                <li class="flex items-start gap-3">
+                                    <span class="w-2 h-2 mt-2 rounded-full bg-purple-400"></span>
+                                    <span><strong>Jippa (Kurta):</strong> Baju kemeja labuh tanpa kolar, selesa dipakai.</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <span class="w-2 h-2 mt-2 rounded-full bg-purple-400"></span>
+                                    <span><strong>Dhoti:</strong> Kain panjang berwarna putih yang dililit di pinggang.</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="bg-orange-50 p-8 rounded-2xl border border-orange-100 hover:shadow-md transition-shadow">
+                            <div class="flex items-center gap-4 mb-6">
+                                <div class="p-3 bg-white rounded-full shadow-sm">
+                                    <i data-lucide="coffee" class="text-orange-600 w-8 h-8"></i>
+                                </div>
+                                <h3 class="font-bold text-orange-900 text-2xl">Makanan (Kuih)</h3>
+                            </div>
+                            <img src="images/food-sweet-savory.png" onerror="handleImgError(this, 'Makanan')" class="w-full h-40 object-cover rounded-lg mb-4 shadow-sm" alt="Makanan">
+                            <ul class="space-y-4 text-gray-700 text-lg">
+                                <li class="flex items-start gap-3">
+                                    <span class="w-2 h-2 mt-2 rounded-full bg-orange-400"></span>
+                                    <span><strong>Murukku:</strong> Snek rangup berbentuk lingkaran.</span>
+                                </li>
+                                <li class="flex items-start gap-3">
+                                    <span class="w-2 h-2 mt-2 rounded-full bg-orange-400"></span>
+                                    <span><strong>Laddu:</strong> Manisan berbentuk bola.</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-span-1 md:col-span-2 bg-blue-50 p-4 rounded-xl text-center text-blue-900 border border-blue-100 flex items-center justify-center gap-3">
+                            <i data-lucide="help-circle" class="w-5 h-5"></i>
+                            <span><strong>Soalan KBAT:</strong> Mengapakah kita perlu mencuba makanan atau pakaian budaya lain?</span>
+                        </div>
+                    </div>`
+            },
+            {
+                id: 11, type: "interactive", title: "Aktiviti Pengukuhan", subtitle: "Bantu Adam memilih pakaian yang betul untuk ke rumah Ravi.",
+                render: () => `
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto h-full content-center">
+                        <div class="col-span-1 md:col-span-2 text-center mb-4">
+                            <p class="text-gray-600 text-lg">Klik pada gambar yang menunjukkan <strong>'Jippa'</strong>.</p>
+                        </div>
+                        
+                        <button onclick="handleQuiz(false, 'Itu Baju Melayu (Cekak Musang). Cuba lagi.')" class="bg-white p-6 rounded-2xl shadow-sm border-2 border-gray-100 hover:border-red-400 hover:shadow-lg flex flex-col items-center transition-all group justify-center overflow-hidden">
+                            <img src="images/quiz-baju-melayu.png" onerror="handleImgError(this, 'Baju+Melayu')" class="w-full h-48 object-cover rounded-xl mb-4 group-hover:scale-105 transition-transform">
+                            <span class="font-bold text-gray-800 text-xl mb-1">Gambar A</span>
+                            <span class="text-sm text-gray-400 group-hover:text-gray-600">(Baju Melayu)</span>
+                        </button>
+
+                        <button onclick="handleQuiz(true, 'Tepat! Jippa adalah baju labuh yang ringkas dan segak.')" class="bg-white p-6 rounded-2xl shadow-sm border-2 border-gray-100 hover:border-green-400 hover:shadow-lg flex flex-col items-center transition-all group justify-center overflow-hidden">
+                            <img src="images/quiz-jippa.png" onerror="handleImgError(this, 'Baju+Jippa')" class="w-full h-48 object-cover rounded-xl mb-4 group-hover:scale-105 transition-transform">
+                            <span class="font-bold text-gray-800 text-xl mb-1">Gambar B</span>
+                            <span class="text-sm text-gray-400 group-hover:text-gray-600">(Jippa)</span>
+                        </button>
+
+                        ${feedback ? `<div class="col-span-1 md:col-span-2 text-center font-bold mt-4 p-4 rounded-xl animate-fadeIn ${quizAnswered ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${feedback}</div>` : ''}
+                    </div>`
+            },
+            {
+                id: 12, type: "story", title: "Resolusi: Hari Perayaan", subtitle: "",
+                render: () => `
+                    <div class="bg-gradient-to-br from-yellow-50 to-orange-50 p-10 rounded-2xl h-full flex flex-col justify-center text-center border border-orange-100 max-w-5xl mx-auto">
+                        <!-- Resolution Image -->
+                        <img src="images/scene-celebration.png" onerror="handleImgError(this, 'Perayaan')" class="w-full h-56 object-cover rounded-xl mb-8 shadow-md" alt="Perayaan">
+                        
+                        <p class="text-gray-800 text-xl leading-relaxed mb-6">Keesokan harinya, rumah Ravi riuh dengan gelak ketawa. Adam kelihatan segak memakai Jippa berwarna biru. Mereka makan Murukku sambil menonton televisyen.</p>
+                        <p class="text-gray-800 text-xl">Ibu Ravi memuji Adam, <span class="italic text-purple-700 font-semibold">"Kacaknya Adam pakai baju ni!"</span> Adam tersenyum malu. Dia berasa sangat gembira kerana mempunyai kawan baru yang baik hati.</p>
+                    </div>`
+            },
+            {
+                id: 13, type: "summary", title: "Rumusan Nilai Murni", subtitle: "",
+                render: () => `
+                    <div class="grid grid-cols-1 gap-6 max-w-4xl mx-auto">
+                        <div class="bg-red-50 p-6 rounded-xl border-l-8 border-red-500 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-bold text-red-900 text-xl mb-2 flex items-center gap-2"><i data-lucide="heart-handshake" class="w-6 h-6"></i> 1. Hormat-menghormati</h4>
+                            <p class="text-gray-700 text-lg">Kita perlu menghormati adat resam jiran tetangga, seperti Adam menghormati seni Kolam Ravi.</p>
+                        </div>
+                        <div class="bg-blue-50 p-6 rounded-xl border-l-8 border-blue-500 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-bold text-blue-900 text-xl mb-2 flex items-center gap-2"><i data-lucide="smile" class="w-6 h-6"></i> 2. Keramahan (Hospitality)</h4>
+                            <p class="text-gray-700 text-lg">Sikap Ravi yang cepat mesra dan menjemput tetamu ke rumah mengeratkan hubungan.</p>
+                        </div>
+                        <div class="bg-green-50 p-6 rounded-xl border-l-8 border-green-500 shadow-sm hover:shadow-md transition-shadow">
+                            <h4 class="font-bold text-green-900 text-xl mb-2 flex items-center gap-2"><i data-lucide="users" class="w-6 h-6"></i> 3. Integrasi Nasional</h4>
+                            <p class="text-gray-700 text-lg">Memakai pakaian kaum lain dan menikmati makanan mereka adalah simbol perpaduan negara kita.</p>
+                        </div>
+                    </div>`
+            },
+            {
+                id: 14, type: "reflection", title: "Refleksi Minda", subtitle: "Soalan Perbincangan",
+                render: () => `
+                    <div class="flex flex-col h-full space-y-6 justify-center max-w-4xl mx-auto">
+                        <div class="bg-indigo-50 p-8 rounded-2xl border border-indigo-100">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="bg-white p-2 rounded-lg shadow-sm">
+                                    <i data-lucide="message-circle" class="text-indigo-600 w-6 h-6"></i>
+                                </div>
+                                <p class="font-bold text-indigo-900 text-xl">Sudut Pandangan:</p>
+                            </div>
+                            <p class="text-gray-700 text-xl italic leading-relaxed">"Jika anda berada di tempat Adam, apakah perasaan anda apabila memakai pakaian budaya lain buat kali pertama?"</p>
+                        </div>
+                        <textarea id="reflectionInput" oninput="updateReflection(this.value)" class="w-full flex-1 p-6 border-2 border-gray-200 rounded-2xl focus:border-indigo-500 focus:ring focus:ring-indigo-100 transition-all resize-none shadow-sm text-lg" placeholder="Tulis pendapat anda di sini... (Contoh: Saya akan rasa bangga kerana...)" style="min-height: 200px;">${reflectionText}</textarea>
+                    </div>`
+            },
+            {
+                id: 15, type: "ending", title: "Tamat", subtitle: "",
+                render: () => `
+                    <div class="flex flex-col items-center justify-center h-full text-center space-y-8">
+                        <div class="relative">
+                            <div class="absolute inset-0 bg-green-200 rounded-full animate-ping opacity-20"></div>
+                            <i data-lucide="check-circle" class="text-green-500 w-24 h-24 relative z-10"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-4xl font-bold text-gray-800 mb-4">Tahniah!</h2>
+                            <p class="text-gray-600 text-xl max-w-xl mx-auto">Anda telah menamatkan modul "Harmoni Budaya". Semoga nilai persahabatan ini terus diamalkan dalam kehidupan seharian.</p>
+                        </div>
+                        <div class="pt-8">
+                            <button onclick="resetApp()" class="px-8 py-4 bg-indigo-600 text-white rounded-full hover:bg-indigo-700 transition shadow-xl hover:shadow-2xl flex items-center gap-2 font-bold text-lg">
+                                <i data-lucide="rotate-ccw" class="w-5 h-5"></i> Mula Semula
+                            </button>
+                        </div>
+                    </div>`
+            }
+        ];
+
+        // Core Functions
+        function renderSlide() {
+            const slides = getSlides();
+            const slide = slides[currentSlide];
+
+            // 1. Title & Subtitle with Enhanced Typography
+            let headerHTML = `
+                <div class="mb-8 border-b pb-6 border-gray-100 flex justify-between items-end">
+                    <div>
+                        <h1 class="text-3xl md:text-5xl font-bold text-slate-800 mb-3 tracking-tight">${slide.title}</h1>
+                        ${slide.subtitle ? `<p class="text-xl text-slate-500 font-medium">${slide.subtitle}</p>` : ''}
+                    </div>
+                    <div class="hidden md:block">
+                        ${slide.type === 'story' ? '<span class="px-4 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-bold uppercase tracking-wide border border-green-200">Cerita</span>' : ''}
+                        ${slide.type === 'info' ? '<span class="px-4 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-bold uppercase tracking-wide border border-blue-200">Info Guru</span>' : ''}
+                        ${slide.type === 'quiz' ? '<span class="px-4 py-1.5 bg-red-100 text-red-700 rounded-full text-sm font-bold uppercase tracking-wide border border-red-200">Uji Minda</span>' : ''}
+                    </div>
+                </div>
+            `;
+
+            // 2. Inject Content
+            const container = document.getElementById('content-container');
+            container.innerHTML = headerHTML + `<div class="flex-1 text-base md:text-lg text-slate-700 w-full">${slide.render()}</div>`;
+
+            // 3. Update Controls
+            document.getElementById('slide-indicator').innerText = `${currentSlide + 1} / ${totalSlides}`;
+            document.getElementById('progress-bar').style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+            
+            document.getElementById('btn-prev').disabled = currentSlide === 0;
+            const btnNext = document.getElementById('btn-next');
+            btnNext.disabled = currentSlide === totalSlides - 1;
+            
+            const nextText = currentSlide === totalSlides - 1 ? 'Tamat' : 'Seterusnya';
+            const nextTextMobile = currentSlide === totalSlides - 1 ? 'Tamat' : 'Maju';
+            
+            document.getElementById('btn-next-text').innerText = nextText;
+            document.getElementById('btn-next-text-mobile').innerText = nextTextMobile;
+
+            // 4. Initialize Icons
+            lucide.createIcons();
+            
+            // 5. Restore Do Now Input Focus if on slide 1
+            if(slide.id === 1) {
+                const input = document.querySelector('input');
+                if(input) {
+                    input.value = doNowResponse;
+                    input.focus();
+                }
+            }
+            
+            // 6. Restore Reflection Input Focus if on slide 14
+            if(slide.id === 14) {
+                 const textarea = document.getElementById('reflectionInput');
+                 if(textarea) {
+                     textarea.value = reflectionText;
+                     textarea.focus();
+                 }
+            }
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides - 1) {
+                currentSlide++;
+                resetState();
+                renderSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                resetState();
+                renderSlide();
+            }
+        }
+
+        function resetState() {
+            // Only reset single question feedback, not the complex quiz state unless intended
+            // quizState = { 1: null, 2: null, 3: null }; // Keep state to allow checking answers
+            feedback = "";
+        }
+
+        function resetApp() {
+            currentSlide = 0;
+            quizAnswered = null;
+            quizState = { 1: null, 2: null, 3: null };
+            feedback = "";
+            reflectionText = "";
+            doNowResponse = "";
+            vocabFlipped = {};
+            renderSlide();
+        }
+
+        // Interaction Functions
+        function handleQuiz(isCorrect, message) {
+            quizAnswered = isCorrect;
+            feedback = message;
+            renderSlide(); 
+        }
+
+        function toggleVocab(word) {
+            vocabFlipped[word] = !vocabFlipped[word];
+            renderSlide(); 
+        }
+
+        function updateReflection(value) {
+            reflectionText = value;
+        }
+
+        // Keyboard Navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+            if (e.key === 'ArrowRight') nextSlide();
+            if (e.key === 'ArrowLeft') prevSlide();
+        });
+
+        // Initial Render
+        renderSlide();
+
+    </script>
+</body>
+</html>
